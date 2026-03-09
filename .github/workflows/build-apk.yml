@@ -5,39 +5,28 @@ on:
     branches: [ main ]
 
 jobs:
-  build-android:
+  build-apk:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Python dependencies
+      - name: Install Flet
         run: |
-          python -m pip install --upgrade pip
-          pip install flet requests
-
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "stable"
-
-      - name: Accept Android licenses
-        run: yes | flutter doctor --android-licenses
-
-      - name: Verify Flutter install
-        run: flutter doctor
+          pip install flet[all]
 
       - name: Build APK
-        run: flet build apk --release
+        run: |
+          yes | flet build apk
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: crypto-wallet-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: flet-apk
+          path: build/apk/*.apk

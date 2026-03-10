@@ -1,5 +1,4 @@
 import flet as ft
-import httpx
 
 # ==================== CONSTANTS ====================
 
@@ -8,26 +7,10 @@ CURRENCY_SYMBOLS = {
     "USD": "$",
     "EUR": "€",
     "GBP": "£",
-    "ZAR": "R",
-    "NGN": "₦",
-    "KES": "KSh",
-    "GHS": "₵",
-    "EGP": "E£",
-    "MAD": "DH"
 }
 
 # Default currency
 DEFAULT_CURRENCY = "USD"
-
-# CoinMarketCap API key
-CMC_API_KEY = "46d91bb1-c3e0-48c6-930a-d83c8d41f791"
-
-# Coins to track (CMC IDs) with their image filenames
-COINS = {
-    "bitcoin": {"id": 1, "image": "bitcoin.png"},
-    "dogecoin": {"id": 74, "image": "dogecoin.png"},
-    "litecoin": {"id": 2, "image": "litecoin.png"}
-}
 
 # ==================== ACTION BUTTONS ====================
 def create_action_buttons():
@@ -53,9 +36,12 @@ def create_action_buttons():
 def create_crypto_prices(page):
     """Create the crypto prices section with images"""
     
-    # Store USD prices globally
-    usd_prices = {}
-    exchange_rates = {}
+    # Sample data (no API calls)
+    coins_data = [
+        {"name": "Bitcoin", "symbol": "BTC", "price": 50000, "change": 2.5, "image": "bitcoin.png"},
+        {"name": "Dogecoin", "symbol": "DOGE", "price": 0.12, "change": -1.2, "image": "dogecoin.png"},
+        {"name": "Litecoin", "symbol": "LTC", "price": 80, "change": 0.8, "image": "litecoin.png"},
+    ]
     
     # Title
     title = ft.Text("Crypto Prices", size=20)
@@ -70,142 +56,68 @@ def create_crypto_prices(page):
     # Container for coin list
     coins_container = ft.Column(spacing=10)
     
-    # Loading message
-    coins_container.controls.append(ft.Text("Loading prices..."))
-    
-    # Function to fetch USD prices from CoinMarketCap
-    def fetch_usd_prices():
-        nonlocal usd_prices
-        try:
-            headers = {"X-CMC_PRO_API_KEY": CMC_API_KEY}
-            ids = ",".join(str(coin["id"]) for coin in COINS.values())
-            url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-            
-            response = httpx.get(
-                url,
-                headers=headers,
-                params={"id": ids, "convert": "USD"},
-                timeout=10
-            )
-            data = response.json().get("data", {})
-            
-            # Process USD prices
-            for coin_name, coin_info in COINS.items():
-                coin_data = data.get(str(coin_info["id"]), {})
-                quote = coin_data.get("quote", {}).get("USD", {})
-                usd_prices[coin_name] = {
-                    "price": quote.get("price", 0),
-                    "change_24h": quote.get("percent_change_24h", 0),
-                    "symbol": coin_data.get("symbol", "").upper(),
-                    "image": coin_info["image"]
-                }
-            return True
-        except Exception as e:
-            print(f"Error fetching USD prices: {e}")
-            return False
-    
-    # Function to fetch exchange rates
-    def fetch_exchange_rates():
-        nonlocal exchange_rates
-        try:
-            url = "https://open.er-api.com/v6/latest/USD"
-            response = httpx.get(url, timeout=10)
-            data = response.json()
-            exchange_rates = data.get("rates", {})
-            return True
-        except Exception as e:
-            print(f"Error fetching exchange rates: {e}")
-            return False
-    
-    # Function to display prices in selected currency
-    def display_prices(target_currency):
-        if not usd_prices:
-            coins_container.controls.clear()
-            coins_container.controls.append(ft.Text("No price data available"))
-            page.update()
-            return
-        
-        # Update display
+    # Function to update prices based on currency
+    def update_prices(currency):
         coins_container.controls.clear()
         
-        for coin_name, data in usd_prices.items():
-            # Convert price if currency is not USD
-            if target_currency != "USD" and target_currency in exchange_rates:
-                rate = exchange_rates[target_currency]
-                converted_price = data["price"] * rate
-                price_symbol = CURRENCY_SYMBOLS.get(target_currency, '$')
-                price_text = f"{price_symbol}{converted_price:.2f}"
-            else:
-                price_text = f"${data['price']:.2f}"
+        # Conversion rates (simple example)
+        rates = {"USD": 1, "EUR": 0.92, "GBP": 0.78}
+        rate = rates.get(currency, 1)
+        symbol = CURRENCY_SYMBOLS.get(currency, "$")
+        
+        for coin in coins_data:
+            converted_price = coin["price"] * rate
             
-            # Create a row for each coin with image and text
+            # Create a row for each coin
             coin_row = ft.Row(
                 controls=[
-                    # Coin image
-                    ft.Image(
-                        src=data["image"],
+                    # Coin image (placeholder text if image not found)
+                    ft.Container(
+                        content=ft.Text(coin["symbol"][0], size=20),
                         width=40,
                         height=40,
-                        fit=ft.ImageFit.CONTAIN
+                        bgcolor=ft.colors.GREY_300,
+                        border_radius=20,
+                        alignment=ft.alignment.center
                     ),
                     # Coin name and symbol
                     ft.Text(
-                        f"{coin_name.capitalize()} ({data['symbol']})",
+                        f"{coin['name']} ({coin['symbol']})",
                         weight=ft.FontWeight.BOLD,
                         expand=True
                     ),
                     # Price
                     ft.Text(
-                        price_text,
+                        f"{symbol}{converted_price:.2f}",
                         weight=ft.FontWeight.BOLD
                     ),
                     # 24h change
                     ft.Text(
-                        f"{data['change_24h']:+.2f}%",
-                        color=ft.colors.GREEN if data['change_24h'] >= 0 else ft.colors.RED,
-                        weight=ft.FontWeight.BOLD
+                        f"{coin['change']:+.2f}%",
+                        color=ft.colors.GREEN if coin['change'] >= 0 else ft.colors.RED,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER
             )
             
-            # Add the coin row
             coins_container.controls.append(coin_row)
             coins_container.controls.append(ft.Divider(height=1))
         
-        # Remove the last divider
+        # Remove last divider
         if coins_container.controls and isinstance(coins_container.controls[-1], ft.Divider):
             coins_container.controls.pop()
         
         page.update()
     
-    # Initial load function
-    def load_initial_data():
-        # Show loading
-        coins_container.controls.clear()
-        coins_container.controls.append(ft.Text("Loading prices..."))
-        page.update()
-        
-        # Fetch USD prices
-        if fetch_usd_prices():
-            # Fetch exchange rates
-            fetch_exchange_rates()
-            # Display in default currency
-            display_prices(DEFAULT_CURRENCY)
-        else:
-            coins_container.controls.clear()
-            coins_container.controls.append(ft.Text("Failed to load prices"))
-            page.update()
-    
     # Dropdown change handler
     def on_currency_change(e):
-        display_prices(currency_dropdown.value)
+        update_prices(currency_dropdown.value)
     
     currency_dropdown.on_change = on_currency_change
     
-    # Load initial data
-    load_initial_data()
+    # Initial update
+    update_prices(DEFAULT_CURRENCY)
     
     # Return the complete crypto section
     return ft.Column(

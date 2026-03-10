@@ -1,20 +1,21 @@
+# main.py
 import flet as ft
 import httpx
 
 # --------------------------
 # Config
 # --------------------------
+
 CURRENCY_SYMBOLS = {
     "USD": "$", "EUR": "€", "GBP": "£", "ZAR": "R", "NGN": "₦",
     "KES": "KSh", "GHS": "₵", "EGP": "E£", "MAD": "DH"
 }
 
 COIN_IMAGES = {
-    "bitcoin": "bitcoin.png",
-    "dogecoin": "dogecoin.png",
-    "litecoin": "litecoin.png"
+    "bitcoin": "https://s2.coinmarketcap.com/static/img/coins/64x64/1.png",
+    "dogecoin": "https://s2.coinmarketcap.com/static/img/coins/64x64/74.png",
+    "litecoin": "https://s2.coinmarketcap.com/static/img/coins/64x64/2.png"
 }
-
 COINS = {
     "bitcoin": 1,
     "dogecoin": 74,
@@ -46,7 +47,7 @@ def create_buttons():
 # --------------------------
 # Coinlist component
 # --------------------------
-def create_coinlist(page: ft.Page, currency_code: str):
+def create_coinlist(page: ft.Page):
     coins_column = ft.Column(spacing=15)
 
     async def fetch_coins(currency_code_upper):
@@ -127,10 +128,10 @@ def create_coinlist(page: ft.Page, currency_code: str):
             coins_column.controls.append(ft.Text(f"Error fetching prices: {e}", color="#F44336"))
             page.update()
 
-    # Schedule first fetch
-    page.run_task(fetch_coins, currency_code)
+    # Run async fetch using page.run_task
+    page.run_task(fetch_coins, DEFAULT_CURRENCY)
 
-    return coins_column, fetch_coins
+    return coins_column
 
 # --------------------------
 # Main app
@@ -138,33 +139,15 @@ def create_coinlist(page: ft.Page, currency_code: str):
 def main(page: ft.Page):
     page.title = "Crypto Wallet App"
 
-    # Buttons
     buttons = create_buttons()
+    coins = create_coinlist(page)
 
-    # Dropdown for currency selection
-    currency_dropdown = ft.Dropdown(
-        width=150,
-        options=[ft.dropdown.Option(code) for code in CURRENCY_SYMBOLS.keys()],
-        value=DEFAULT_CURRENCY
-    )
-
-    # Coinlist
-    coins_column, fetch_coins = create_coinlist(page, DEFAULT_CURRENCY)
-
-    # Update coinlist when dropdown changes
-    def on_currency_change(e):
-        page.run_task(fetch_coins, e.control.value)
-
-    currency_dropdown.on_change = on_currency_change
-
-    # Layout
     page.add(
         ft.Column(
             [
                 buttons,
-                ft.Row([ft.Text("Select Currency:"), currency_dropdown], spacing=10),
                 ft.Divider(height=20),
-                coins_column
+                coins
             ],
             spacing=20,
             alignment=ft.MainAxisAlignment.START

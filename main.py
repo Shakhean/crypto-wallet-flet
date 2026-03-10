@@ -15,7 +15,7 @@ CURRENCY_SYMBOLS = {
     "MAD": "DH"
 }
 
-# Crypto colors (used for card accent)
+# Crypto colors (card accent)
 CRYPTO_COLORS = {
     "bitcoin": "#F7931A",
     "dogecoin": "#C3A634",
@@ -54,13 +54,7 @@ def main(page: ft.Page):
 
     coins_column = ft.Column(spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # Initially add empty column so UI renders immediately
-    page.add(
-        ft.Row([ft.Text("Crypto Prices", size=28, weight="bold", color="#FFFFFF")]),
-        coins_column
-    )
-
-    # Theme toggle
+    # --- Theme toggle ---
     def toggle_theme(e):
         if page.theme_mode == ft.ThemeMode.DARK:
             page.theme_mode = ft.ThemeMode.LIGHT
@@ -72,20 +66,25 @@ def main(page: ft.Page):
             page.bgcolor = "#0F172A"
             theme_icon.icon = ft.icons.LIGHT_MODE
             theme_icon.icon_color = ACCENT_YELLOW
-        page.update()
-        asyncio.create_task(fetch_coins(currency_dropdown.value))
+        # FIXED: Use lambda to create coroutine
+        page.run_task(fetch_coins, currency_dropdown.value)
 
-    # Async fetch prices
+    # --- Async fetch prices ---
     async def fetch_coins(currency_code_upper):
         headers = {"X-CMC_PRO_API_KEY": CMC_API_KEY}
         currency_code = currency_code_upper.upper()
+
+        # Clear column first (show empty if fetch fails)
+        coins_column.controls.clear()
+        placeholder = ft.Text("Loading prices...", size=16, color="#94A3B8")
+        coins_column.controls.append(placeholder)
+        page.update()
+
         try:
             ids = ",".join(str(v) for v in COINS.values())
             url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-            params = {"id": ids, "convert": currency_code}
-
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.get(url, headers=headers, params=params)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, params={"id": ids, "convert": currency_code}, timeout=10)
                 data = response.json().get("data", {})
 
             coins_column.controls.clear()
@@ -143,6 +142,7 @@ def main(page: ft.Page):
                     animate=ft.animation.Animation(200, "easeInOut")
                 )
 
+                # Hover effect
                 def on_hover(e, card=card, hover_bg=hover_bg, card_bg=card_bg):
                     card.bgcolor = hover_bg if e.data == "true" else card_bg
                     card.update()
@@ -151,13 +151,12 @@ def main(page: ft.Page):
                 coins_column.controls.append(card)
 
             page.update()
-
         except Exception as e:
             coins_column.controls.clear()
             coins_column.controls.append(ft.Text(f"Error fetching prices: {e}", color="#F44336"))
             page.update()
 
-    # Theme toggle button
+    # --- Theme toggle button ---
     theme_icon = ft.IconButton(
         icon=ft.icons.LIGHT_MODE,
         icon_color=ACCENT_YELLOW,
@@ -165,33 +164,34 @@ def main(page: ft.Page):
         tooltip="Switch Theme"
     )
 
-    # Currency dropdown
+    # --- Currency dropdown ---
     currency_dropdown = ft.Dropdown(
         width=150,
         options=[ft.dropdown.Option(code) for code in CURRENCY_SYMBOLS.keys()],
         value=DEFAULT_CURRENCY,
-        on_change=lambda e: asyncio.create_task(fetch_coins(e.control.value)),
+        # FIXED: Use lambda to create coroutine
+        on_change=lambda e: page.run_task(fetch_coins, e.control.value),
         bgcolor="#1E293B",
         border_color=PRIMARY_BLUE,
         color="#FFFFFF",
         focused_border_color=ACCENT_YELLOW
     )
 
-    # Header row with theme and currency
-    header_row = ft.Row(
+    # --- Header ---
+    header = ft.Row(
         controls=[ft.Text("Crypto Prices", size=28, weight="bold", color="#FFFFFF"), ft.Row([theme_icon], spacing=5)],
         alignment="spaceBetween"
     )
 
-    currency_row = ft.Row(
-        controls=[ft.Text("Select Currency:", color="#94A3B8"), currency_dropdown],
-        spacing=10
+    page.add(
+        header,
+        ft.Row([ft.Text("Select Currency:", color="#94A3B8"), currency_dropdown], spacing=10),
+        ft.Divider(height=20, color="#334155"),
+        coins_column
     )
 
-    page.controls.clear()
-    page.add(header_row, currency_row, ft.Divider(height=20, color="#334155"), coins_column)
-
-    # Initial fetch
-    asyncio.create_task(fetch_coins(DEFAULT_CURRENCY))
+    # Initial fetch on load
+    # FIXED: Use run_task instead of task
+    page.run_task(fetch_coins, DEFAULT_CURRENCY)
 
 ft.app(target=main)

@@ -17,7 +17,7 @@ COINS = {
     "litecoin": 2
 }
 
-CMC_API_KEY = "YOUR_API_KEY"
+CMC_API_KEY = "46d91bb1-c3e0-48c6-930a-d83c8d41f791"
 
 # --------------------------
 # Buttons component
